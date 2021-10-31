@@ -1,4 +1,5 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.13)
+# ^ needed because we pass normal variables into subprojects (https://cmake.org/cmake/help/latest/policy/CMP0077.html)
 
 ################################################################################
 # libNDOF
@@ -25,8 +26,8 @@ option( LIBNDOF_TIMETAG             "tag events with time points using <chrono> 
 # settings
 
 # specify the C++ standard
-set(CMAKE_CXX_STANDARD 11) # FIXME: 14?
-set(CMAKE_CXX_STANDARD_REQUIRED True)
+set( CMAKE_CXX_STANDARD 11 )
+set( CMAKE_CXX_STANDARD_REQUIRED True )
 
 # version
 set( LIBNDOF_VERSION_MAJOR  0 )
@@ -55,16 +56,12 @@ set( LIBNDOF_INCLUDES
 ################################################################################
 # dependencies ('libs/')
 
-# libs/hidapi TODO: set CACHE?
 
-# no test program
+# build `hidapi`
 set( HIDAPI_BUILD_HIDTEST OFF ) 
-# only usb backend (linux only)
 set( HIDAPI_WITH_LIBUSB ON )
 set( HIDAPI_WITH_HIDRAW OFF )
-# HIDAPI as static library. 
 #set( BUILD_SHARED_LIBS OFF ) FIXME: subproject only
-# build
 add_subdirectory( ${LIBNDOF_LIBS_DIR}/hidapi )
 list( APPEND LIBNDOF_TARGET_LIBRARIES hidapi::hidapi )
 
@@ -85,11 +82,22 @@ list( APPEND LIBNDOF_SOURCES ${LIBNDOF_INCLUDES} )
 # create library 'libNDOF'
 add_library( libNDOF ${LIBNDOF_SOURCES} )
 
+# add preprocessor definitions
+target_compile_definitions( libNDOF PRIVATE  $<$<BOOL:LIBNDOF_DEBUG_OUTPUT_ENABLE>:"LIBNDOF_DEBUG_OUTPUT_ENABLE"> )
+# (the rest is set in configure.hpp.in; think what preprocessor directives to expose for library users)
+
+# https://stackoverflow.com/questions/17511496/how-to-create-a-shared-library-with-cmake+
+# TODO:   target_compile_definitions(MathFunctions PRIVATE "USE_MYMATH")
+# TODO: properties:
+#set_target_properties(mylib PROPERTIES VERSION ${PROJECT_VERSION})
+#set_target_properties(mylib PROPERTIES PUBLIC_HEADER include/mylib.h)
+
 # add local include paths here:
 target_include_directories( libNDOF PRIVATE "${PROJECT_BINARY_DIR}" )   # ^ add configure.hpp
 # add exposed include paths here:
 target_include_directories( libNDOF PUBLIC "${LIBNDOF_INCLUDE_DIR}" )  # ^ expose 'include/' TODO: into configured, binary dir?. for PUBLIC vs INTERFACE, see https://stackoverflow.com/questions/26243169/cmake-target-include-directories-meaning-of-scope
 
 # link target to libraries
+# https://cmake.org/cmake/help/latest/guide/tutorial/Selecting%20Static%20or%20Shared%20Libraries.html
 target_link_libraries( libNDOF ${LIBNDOF_TARGET_LIBRARIES} )
 

@@ -14,6 +14,7 @@
 // License along with this library; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
 // USA
+#ifndef _LIBNDOF_LIBNDOF_HPP_
 #define _LIBNDOF_LIBNDOF_HPP_
 #include <queue>
 #include <list>
@@ -26,6 +27,7 @@
 #include "hidapi.h"
 #endif
 
+#define LIBNDOF_TIMETAG // FIXME: use definitions from CMakeLists.txt
 
 namespace ndof 
 {
@@ -49,7 +51,6 @@ class DeviceEvent;
 // device buttons
 enum class Button
 {
-    // used internally, never sent
     EMPTY,
     A,
     // etc
@@ -102,7 +103,7 @@ public:
 class DeviceInfo
 {
 public:
-    operator bool() const { return ; }
+    operator bool() const { return false; } // FIXME
     
     // for example
     std::string name() const;
@@ -126,8 +127,8 @@ private:
 enum class DeviceEventType
 {
     EMPTY,              // ^ the empty deviceevent
-    CONNECT,            // ^ device connected
-    DISCONNECT,         // ^ device disconnected
+    CONNECTED,          // ^ device connected
+    DISCONNECTED,       // ^ device disconnected
     MOTION,             // ^ motion
     BUTTON_CHANGE       // ^ strict change of botton state
 };
@@ -145,6 +146,9 @@ public:
     DeviceEvent(DeviceEvent&& ) = default;
     DeviceEvent& operator=(DeviceEvent&& ) = default;
 
+    // is this a valid event?
+    operator bool() const                    { return m_type != DeviceEventType::EMPTY; }
+    // is this event of given type?
     bool operator()(DeviceEventType t) const { return m_type == t; }
 
     // client calls this to retrieve data
@@ -154,7 +158,8 @@ public:
     ButtonChange  buttonchange() const;
 
 private:
-    DeviceEvent(DeviceEventType t) : m_type( t ) {  }
+    DeviceEvent()                 : m_type( DeviceEventType::EMPTY ) {  }
+    DeviceEvent(DeviceEventType t): m_type( t ) {  }
 
     // type of event
     DeviceEventType m_type = DeviceEventType::EMPTY;
@@ -203,6 +208,8 @@ class Connection
 friend class NDOF;
 
 public:
+    Connection();
+
     // multiple connections are allowed, however, they all work on the same
     // low level connection. this makes it possible to use Connection's as a 
     // members in a class that is copied
@@ -219,9 +226,11 @@ public:
     // ^ no such functionlity since connection status may change during calls.
 
 private:
-    // NDOF owns devices
-    Connection(NDOF& );
+    // NDOF owns all connections
+    Connection(NDOF* );
+
     std::shared_ptr<ConnectionImpl> m_impl;
+
 };
 
 
@@ -233,8 +242,10 @@ private:
 class NDOF
 {
 public:
+    NDOF() = default;
     NDOF(const NDOF& ) = delete;
     NDOF& operator=(const NDOF& ) = delete;
+    // ^ FIXME: are move constructors generated when default/delete?
 
     // start ndof
     void begin();
