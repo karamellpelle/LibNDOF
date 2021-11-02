@@ -202,7 +202,7 @@ private:
 
 class ConnectionImpl;
 
-// Device: a connection to a 3D mouse 
+// interface to a potentional 3D mouse
 class Connection
 {
 friend class NDOF;

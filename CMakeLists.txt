@@ -16,6 +16,7 @@ option( LIBNDOF_DEBUG_OUTPUT_ENABLE "build with stdout debug output" ON )
 option( LIBNDOF_BACKEND_HDIAPI      "use 'hdiapi' backend" ON )
 option( LIBNDOF_BACKEND_SDK         "use 3Dconnexion drivers as backend (not implemented)" OFF )
 option( LIBNDOF_TIMETAG             "tag events with time points using <chrono> STL" ON )
+option( LIBNDOF_BUILD_EXAMPLES      "build example programs" ON )
 
 
 ################################################################################
@@ -100,4 +101,8 @@ target_include_directories( libNDOF PUBLIC "${LIBNDOF_INCLUDE_DIR}" )  # ^ expos
 # link target to libraries
 # https://cmake.org/cmake/help/latest/guide/tutorial/Selecting%20Static%20or%20Shared%20Libraries.html
 target_link_libraries( libNDOF ${LIBNDOF_TARGET_LIBRARIES} )
+
+if ( LIBNDOF_BUILD_EXAMPLES )
+    add_subdirectory( "${CMAKE_CURRENT_SOURCE_DIR}/examples" )
+endif()
 
