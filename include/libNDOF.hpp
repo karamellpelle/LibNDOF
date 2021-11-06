@@ -17,7 +17,7 @@
 #ifndef _LIBNDOF_LIBNDOF_HPP_
 #define _LIBNDOF_LIBNDOF_HPP_
 #include <queue>
-#include <list>
+#include <forward_list>
 #include <vector>
 #include <chrono>
 #include <mutex>
@@ -57,7 +57,7 @@ enum class Button
 };
 
 
-// button press (DOWN) or neutral (UP)?
+// button pressed (DOWN) or neutral (UP)?
 enum class ButtonState
 {
     EMPTY,
@@ -141,10 +141,10 @@ friend class NDOF;
 friend class Connection;
 
 public:
-    DeviceEvent(const DeviceEvent& ) = delete;
-    DeviceEvent& operator=(const DeviceEvent& ) = delete;
+    // DeviceEvent's are unique and can only be moved, not copied
     DeviceEvent(DeviceEvent&& ) = default;
     DeviceEvent& operator=(DeviceEvent&& ) = default;
+    ~DeviceEvent();
 
     // is this a valid event?
     operator bool() const                    { return m_type != DeviceEventType::EMPTY; }
@@ -160,6 +160,12 @@ public:
 private:
     DeviceEvent()                 : m_type( DeviceEventType::EMPTY ) {  }
     DeviceEvent(DeviceEventType t): m_type( t ) {  }
+    DeviceEvent(float ,float ,float ,float ,float ,float );
+    DeviceEvent(Button, ButtonState );
+
+    // no copy construct/assign (DeviceEvent's are unique objects, only construct, move and destroy)
+    DeviceEvent(const DeviceEvent& ) = delete;
+    DeviceEvent& operator=(const DeviceEvent& ) = delete;
 
     // type of event
     DeviceEventType m_type = DeviceEventType::EMPTY;
@@ -178,18 +184,14 @@ private:
         struct
         {
             Button      m_button;
-            ButtonState m_state;
+            ButtonState m_buttonstate;
         };
-        //// device info
-        //struct
-        //{
-        //    std::unique_ptr<DeviceInfo> m_deviceinfo;
-        //};
+        // device info
+        struct
+        {
+           DeviceInfo* m_deviceinfo = nullptr;
+        };
     };
-    std::unique_ptr<DeviceInfo> m_deviceinfo; 
-    // ^ TODO: into union to save memory, or more general:
-    //  * std::unique_ptr<void> m_data; 
-    //  * std::unique_ptr<DeviceEventData> m_data; // DeviceEventData is virtual subclass
 
 #ifdef LIBNDOF_TIMETAG
     Time     time = 0.0; // FIXME
@@ -219,8 +221,8 @@ public:
     Connection& operator=(Connection&& ) = default;
     ~Connection() = default;
 
-    // pull DeviceEvent from connection, if any
-    DeviceEvent pop_event();
+    // pull a DeviceEvent from connection (the result may be empty)
+    DeviceEvent pop();
     
     //bool connected() const; 
     // ^ no such functionlity since connection status may change during calls.
@@ -265,11 +267,14 @@ public:
     Connection connect(const std::string );   // ^ connect to device having name (?)
 
 private:
-    std::list<std::shared_ptr<Connection>> m_connections;
+    std::forward_list<std::shared_ptr<Connection>> m_connections;
 
     // worker thread (HID)
     std::thread m_hid_thread;
     void run_hid();
+   
+    std::queue<DeviceEvent> m_eventqueue; // or std::priority_queue?
+    mutable std::mutex m_mutex_eventqueue;
     
     bool push_hid_data(/* args */ );
     void push_deviceevent(const DeviceEvent& );

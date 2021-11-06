@@ -1,2 +1,3 @@
 # libNDOF
-Library for handling 3D mouse devices
+Library for 3D mouse USB devices support
+

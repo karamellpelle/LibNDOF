@@ -38,19 +38,41 @@ std::string DeviceInfo::name() const
 ////////////////////////////////////////////////////////////////////////////////
 // DeviceEvent
 
-DeviceInfo DeviceEvent::device() const
+DeviceEvent::DeviceEvent(float tx, float ty, float tz, float rx, float ry, float rz) 
+    : m_type( DeviceEventType::MOTION  ), 
+      m_tx( tx ), m_ty( ty ), m_tz( tz ), m_rx( rx ), m_ry( ry ), m_rz( rz )
 {
-    return DeviceInfo();  // FIXME
+
 }
 
+DeviceEvent::DeviceEvent(Button b, ButtonState s)
+    : m_type( DeviceEventType::BUTTON_CHANGE ),
+      m_button( b ), m_buttonstate( s )
+{
+
+}
+
+DeviceEvent::~DeviceEvent()
+{
+    delete m_deviceinfo; 
+}
+
+// undefined result if type is not correct
+DeviceInfo DeviceEvent::device() const
+{
+    return *m_deviceinfo;
+}
+
+// undefined result if type is not correct
 Motion DeviceEvent::motion() const
 {
     return Motion();  // FIXME
 }
 
+// undefined result if type is not correct
 ButtonChange DeviceEvent::buttonchange() const
 {
-    return ButtonChange(); 
+    return ButtonChange(); // FIXME
 }
 
 
@@ -68,7 +90,7 @@ private:
     // NDOF manager
     NDOF* m_ndof = nullptr;
 
-    DeviceEvent pop_event();
+    DeviceEvent pop();
 
     std::queue<DeviceEvent> m_queue;
     mutable std::mutex m_mutex_queue;
@@ -87,9 +109,16 @@ Connection::Connection(NDOF* n) :
      
 }
 
-DeviceEvent Connection::pop_event()
+DeviceEvent Connection::pop()
 {
-    ConnectionImpl& imp = *m_impl;
+    if ( m_impl )
+    {
+        ConnectionImpl& impl = *m_impl;
+    
+        return DeviceEvent(); // tmp
+    }
+
+    // return empty event if this object is empty
     return DeviceEvent();
 }
 
@@ -99,19 +128,21 @@ DeviceEvent Connection::pop_event()
 
 void NDOF::begin()
 {
-    std::cout << "ndof::Context::begin():"  << std::endl
-              << "  libNDOF:" << std::endl 
-              << "    version major: " << LIBNDOF_VERSION_MAJOR << std::endl
-              << "    version minor: " << LIBNDOF_VERSION_MINOR << std::endl
+    std::cout << "ndof::NDOF::begin()"  << std::endl
+              << "  version major: " << LIBNDOF_VERSION_MAJOR << std::endl
+              << "  version minor: " << LIBNDOF_VERSION_MINOR << std::endl
               << std::endl;
 
     // TODO: setup hidapi, launch thread
+    // m_eventqueue.emplace<DeviceEvent>( args );
 }
 
 Connection NDOF::connect()
 {
-    std::cout << "ndof::connect():"  << std::endl;
+    std::cout << "ndof::NDOF::connect()"  << std::endl;
     return Connection();
 }
+
+
 
 } // namespace ndof

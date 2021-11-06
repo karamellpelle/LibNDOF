@@ -39,6 +39,7 @@ int main(int argc, char** argv)
 {
     // create NDOF manager
     ndof::NDOF ndof;
+    ndof.begin();
 
     // create connection to first available 3D mouse device
     ndof::Connection connection = ndof.connect();
@@ -46,7 +47,7 @@ int main(int argc, char** argv)
     while ( !is_quit() )
     {
         // poll events until no more left
-        while ( auto event = connection.pop_event() )
+        while ( auto event = connection.pop() )
         {
             if ( event( ndof::DeviceEventType::CONNECTED ) )
             {
