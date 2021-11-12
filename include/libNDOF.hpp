@@ -253,6 +253,12 @@ public:
     void begin();
     void end();
 
+#ifdef _WIN32
+    // drive NDOF manually by application HID messages on Win32
+    // TODO: see if we can create a dummy windowclass in 'begin()' with custom WinProc
+    bool win32_inject(UINT , WPARAM, LPARAM );
+#endif
+
     // list of connected devices. 
     std::vector<DeviceInfo> devices() const;
 
