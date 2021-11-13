@@ -121,6 +121,24 @@ private:
 
 
 ////////////////////////////////////////////////////////////////////////////////
+// DeviceVariant
+
+// (VendorID, ProductID)
+class DeviceVariant
+{
+public:
+    DeviceVariant(uint16_t v, uint16_t p) : vid( v ), pid( p ) {  }
+
+    uint16_t vid = 0x0000;
+    uint16_t pid = 0x0000;
+
+    // lets hope they don't change vendor any more :)
+    uint16_t vid_alt = 0x0000;
+    uint16_t pid_alt = 0x0000;
+};
+
+
+////////////////////////////////////////////////////////////////////////////////
 // DeviceEvent
 
 // different deviceevents from a NDOF device
@@ -199,6 +217,7 @@ private:
 };
 
 
+
 ////////////////////////////////////////////////////////////////////////////////
 // Connection
 
@@ -227,10 +246,39 @@ public:
     //bool connected() const; 
     // ^ no such functionlity since connection status may change during calls.
 
+public:
+
+    // Ideal 
+    class Ideal
+    {
+    public:
+        Ideal();                            // ^ any device
+        Ideal(const DeviceVariant& );       // ^ any device of given product variant (VendorID, ProductID). TODO: set of 
+        Ideal(const std::regex& name);      // ^ any device matching product name 
+        Ideal(uint uuid);                   // ^ the exact device
+        
+        enum class Reconnect
+        {
+            ANY,      // ^ reconnect to any available device
+            VARIANT,  // ^ reconnect to any available device with same device variant (product)
+            UNIQUE,   // ^ reconnect to same device (using UUID (or serial number?))
+            NONE,     // ^ do not reconnect
+        };
+
+        Ideal& reconnection(Reconnect );
+
+
+        std::regex regex; 
+        DeviceVariant variant;
+        Reconnect reconnect; // if not default constructed: Reconnect::VARIANT, otherwise: Reconnect::ANY 
+        
+    };
+
 private:
     // NDOF owns all connections
     Connection(NDOF* );
 
+    Ideal m_ideal;
     std::shared_ptr<ConnectionImpl> m_impl;
 
 };
@@ -262,15 +310,11 @@ public:
     // list of connected devices. 
     std::vector<DeviceInfo> devices() const;
 
-    // create connection to a device (pending or existing).
-    // returned Connection will not connect to a device if there
-    // already is a Connection to that device. this way we can 
-    // connect to multiple devices. the connected device may however 
-    // change between DEVICE_DISCONNECTED/DEVICE_CONNECTED unless
-    // care has been taken (like UUID, etc, which is not implemented atm)
-    Connection connect();                     // ^ automatically connect to any available device. 
-    Connection connect(uint16_t , uint16_t ); // ^ connect to device with specified VID, PID
-    Connection connect(const std::string );   // ^ connect to device having name (?)
+    // create connection to a device (existing or pending) based on given ideal.
+    // returned Connection will not connect to a device if there already is a 
+    // Connection to that device. the connected device may change between 
+    // DISCONNECTED/CONNECTED 
+    Connection connect(const Connection::Ideal& );
 
 private:
     std::forward_list<std::shared_ptr<Connection>> m_connections;

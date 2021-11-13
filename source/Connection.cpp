@@ -21,62 +21,54 @@
 #include "configure.hpp"
 
 
-
 namespace ndof
 {
 
 
 ////////////////////////////////////////////////////////////////////////////////
-// DeviceInfo
+// Connection
 
-std::string DeviceInfo::name() const
+class ConnectionImpl
 {
-    return "";
+public:
+    ConnectionImpl(NDOF* n) : m_ndof( n ) {  }
+private:
+
+    // TODO: handle destruction, i.e. all references from client are gone
+
+    // NDOF manager
+    NDOF* m_ndof = nullptr;
+
+    DeviceEvent pop();
+
+    std::queue<DeviceEvent> m_queue;
+    mutable std::mutex m_mutex_queue;
+
+};
+
+
+Connection::Connection() : Connection( nullptr )
+{
+    
 }
 
-
-////////////////////////////////////////////////////////////////////////////////
-// DeviceEvent
-
-DeviceEvent::DeviceEvent(float tx, float ty, float tz, float rx, float ry, float rz) 
-    : m_type( DeviceEventType::MOTION  ), 
-      m_tx( tx ), m_ty( ty ), m_tz( tz ), m_rx( rx ), m_ry( ry ), m_rz( rz )
+Connection::Connection(NDOF* n) : 
+    m_impl( std::make_shared<ConnectionImpl>( n ) ) 
 {
-
+     
 }
 
-DeviceEvent::DeviceEvent(Button b, ButtonState s)
-    : m_type( DeviceEventType::BUTTON_CHANGE ),
-      m_button( b ), m_buttonstate( s )
+DeviceEvent Connection::pop()
 {
+    if ( m_impl )
+    {
+        ConnectionImpl& impl = *m_impl;
+    
+        return DeviceEvent(); // tmp
+    }
 
+    // return empty event if this object is empty
+    return DeviceEvent();
 }
-
-DeviceEvent::~DeviceEvent()
-{
-    delete m_deviceinfo; 
-}
-
-// undefined result if type is not correct
-DeviceInfo DeviceEvent::device() const
-{
-    return *m_deviceinfo;
-}
-
-// undefined result if type is not correct
-Motion DeviceEvent::motion() const
-{
-    return Motion();  // FIXME
-}
-
-// undefined result if type is not correct
-ButtonChange DeviceEvent::buttonchange() const
-{
-    return ButtonChange(); // FIXME
-}
-
-
-
-
 
 } // namespace ndof
