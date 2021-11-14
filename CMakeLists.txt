@@ -46,11 +46,18 @@ set( LIBNDOF_LIBS_DIR "${PROJECT_SOURCE_DIR}/libs" )
 # source files to build
 set( LIBNDOF_SOURCES
      "${LIBNDOF_SOURCE_DIR}/libNDOF.cpp"
+     "${LIBNDOF_SOURCE_DIR}/NDOF.cpp"
+     "${LIBNDOF_SOURCE_DIR}/Connection.cpp"
    )
+# add MacOS-specific files FIXME use instead 'if ( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" )' ?
+if ( APPLE ) 
+    list( APPEND LIBNDOF_SOURCES "${LIBNDOF_SOURCE_DIR}/NDOF/MacOS.mm" )
+endif()
 
 # source include files 
 set( LIBNDOF_INCLUDES
      "${LIBNDOF_INCLUDE_DIR}/libNDOF.hpp"
+     "${LIBNDOF_INCLUDE_DIR}/libNDOF/devices.hpp"
    )
 
 

@@ -22,6 +22,7 @@
 #include <chrono>
 #include <mutex>
 #include <thread>
+#include <regex>
 
 #ifdef LIBNDOF_BACKEND_HDIAPI 
 #include "hidapi.h"
@@ -99,7 +100,31 @@ public:
 #endif
 };
 
-// device information
+
+
+////////////////////////////////////////////////////////////////////////////////
+// DeviceVariant
+
+// descrining a product variant of a 3D mouse (VendorID, ProductID)
+class DeviceVariant
+{
+public:
+    constexpr DeviceVariant(uint16_t v, uint16_t p) : DeviceVariant( v, p, 0x0000, 0x0000 ) {  }
+    constexpr DeviceVariant(uint16_t v, uint16_t p, uint16_t va, uint16_t pa) : vid( v ), pid( p ), vid_alt( va ), pid_alt( pa ) {  }
+
+    uint16_t vid = 0x0000;
+    uint16_t pid = 0x0000;
+
+    // lets hope they don't change vendor any more :)
+    uint16_t vid_alt = 0x0000;
+    uint16_t pid_alt = 0x0000;
+};
+
+
+////////////////////////////////////////////////////////////////////////////////
+// DeviceInfo
+
+// specific information about a physically connected device
 class DeviceInfo
 {
 public:
@@ -117,24 +142,6 @@ private:
 #ifdef LIBNDOF_TIMETAG
     Time     time = 0.0; // FIXME
 #endif
-};
-
-
-////////////////////////////////////////////////////////////////////////////////
-// DeviceVariant
-
-// (VendorID, ProductID)
-class DeviceVariant
-{
-public:
-    DeviceVariant(uint16_t v, uint16_t p) : vid( v ), pid( p ) {  }
-
-    uint16_t vid = 0x0000;
-    uint16_t pid = 0x0000;
-
-    // lets hope they don't change vendor any more :)
-    uint16_t vid_alt = 0x0000;
-    uint16_t pid_alt = 0x0000;
 };
 
 
@@ -248,37 +255,37 @@ public:
 
 public:
 
-    // Ideal 
+    // stating the ideal device for a connection
     class Ideal
     {
     public:
-        Ideal();                            // ^ any device
-        Ideal(const DeviceVariant& );       // ^ any device of given product variant (VendorID, ProductID). TODO: set of 
-        Ideal(const std::regex& name);      // ^ any device matching product name 
-        Ideal(uint uuid);                   // ^ the exact device
+        Ideal();                                        // ^ any device
+        Ideal(std::initializer_list<DeviceVariant> );   // ^ any device of given product variants (VendorID, ProductID). 
+        Ideal(const std::regex& name);                  // ^ any device matching product name 
+        Ideal(uint uuid);                               // ^ the exact device
         
         enum class Reconnect
         {
-            ANY,      // ^ reconnect to any available device
-            VARIANT,  // ^ reconnect to any available device with same device variant (product)
-            UNIQUE,   // ^ reconnect to same device (using UUID (or serial number?))
-            NONE,     // ^ do not reconnect
+            IDEAL,         // ^ reconnect to any available device matching ideal
+            DEVICE,        // ^ reconnect to same device (using UUID (or serial number?))
+            NONE,          // ^ do not reconnect to any device; let connection die
         };
 
-        Ideal& reconnection(Reconnect );
+        Ideal& operator()(Reconnect r) { reconnect = r; return *this; }
 
 
         std::regex regex; 
-        DeviceVariant variant;
-        Reconnect reconnect; // if not default constructed: Reconnect::VARIANT, otherwise: Reconnect::ANY 
-        
+        std::vector<DeviceVariant> variants;
+        uint uuid = 0;
+
+        // how to handle reconnections
+        Reconnect reconnect = Reconnect::IDEAL; 
     };
 
 private:
     // NDOF owns all connections
     Connection(NDOF* );
 
-    Ideal m_ideal;
     std::shared_ptr<ConnectionImpl> m_impl;
 
 };
@@ -315,6 +322,11 @@ public:
     // Connection to that device. the connected device may change between 
     // DISCONNECTED/CONNECTED 
     Connection connect(const Connection::Ideal& );
+
+    // all physically connected devices 
+    //vector<DeviceInfo> devices() const;
+    // all connected devices
+    //vector<Connection> connections() const;
 
 private:
     std::forward_list<std::shared_ptr<Connection>> m_connections;

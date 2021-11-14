@@ -44,6 +44,7 @@ private:
     std::queue<DeviceEvent> m_queue;
     mutable std::mutex m_mutex_queue;
 
+    Connection::Ideal m_ideal;
 };
 
 
@@ -70,5 +71,31 @@ DeviceEvent Connection::pop()
     // return empty event if this object is empty
     return DeviceEvent();
 }
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Connection::Ideal
+
+Connection::Ideal::Ideal() 
+{
+    
+}
+
+Connection::Ideal::Ideal(std::initializer_list<DeviceVariant> inits) : variants( inits ), reconnect( Reconnect::IDEAL )
+{
+    
+}
+
+Connection::Ideal::Ideal(const std::regex& name) : reconnect( Reconnect::IDEAL )
+{
+    
+}
+
+Connection::Ideal::Ideal(uint uuid) : reconnect( Reconnect::DEVICE )
+{
+
+
+}
+
 
 } // namespace ndof

@@ -1,6 +1,6 @@
 #include <iostream>
 #include "libNDOF.hpp"
-#include "libNDOF/Devices.hpp"
+#include "libNDOF/devices.hpp"
 
 using uint = ndof::uint;
 
@@ -44,11 +44,14 @@ int main(int argc, char** argv)
     NDOF ndof;
     ndof.begin();
 
-    // create connection to first available 3D mouse device
-    Connection connection = ndof.connect();
-
-    Connection connection = ndof.connect( Connection::Ideal( DeviceVariant( 0x0167, 0x003d ) ).reconnection( Connection::Ideal::Reconnect::UNIQUE ) );
-    Connection connection = ndof.connect( Connection::Ideal( device::spacemouse3d ).reconnection( Connection::Ideal::Reconnect::UNIQUE ) );
+    // connect and reconnect to any available device
+    Connection connection = ndof.connect( Connection::Ideal() );
+    // connect to any available device, but only reconnect to that
+    //Connection connection = ndof.connect( Connection::Ideal()( Connection::Ideal::Reconnect::SAME_DEVICE ) );
+    //Connection connection = ndof.connect( Connection::Ideal( DeviceVariant( 0x0167, 0x003d ) )( Connection::Ideal::Reconnect::SAME_DEVICE ) );
+    //Connection connection = ndof.connect( Connection::Ideal( device::spacemouse3d )( Connection::Ideal::Reconnect::SAME_DEVICE ) );
+    //// connect and reconnect to any available "Spacemouse 3D" device
+    //Connection connection = ndof.connect( Connection::Ideal( device::spacemouse3d )( Connection::Ideal::Reconnect::SAME_VARIANT ) );
 
     while ( !is_quit() )
     {

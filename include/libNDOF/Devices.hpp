@@ -14,18 +14,20 @@
 // License along with this library; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
 // USA
-#ifndef _LIBNDOF_LIBNDOF_HPP_DEVICES_
-#define _LIBNDOF_LIBNDOF_HPP_DEVICES_
+#ifndef _LIBNDOF_LIBNDOF_DEVICES_HPP_
+#define _LIBNDOF_LIBNDOF_DEVICES_HPP_
 
 namespace ndof 
 {
 
 namespace device
 {
+
 constexpr DeviceVariant spacemouse3d { 0x0000, 0x0000, 0x0000, 0x0000, };
-};
+
+} // namespace ndof::device
 
 } // namespace ndof
 
 
-#endif // _LIBNDOF_LIBNDOF_HPP_
+#endif // _LIBNDOF_LIBNDOF_DEVICES_HPP_
