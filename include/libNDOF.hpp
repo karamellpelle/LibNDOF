@@ -115,7 +115,7 @@ public:
     uint16_t vid = 0x0000;
     uint16_t pid = 0x0000;
 
-    // lets hope they don't change vendor any more :)
+    // there may be an alternative(s?), typically connecting a wireless variant with cable
     uint16_t vid_alt = 0x0000;
     uint16_t pid_alt = 0x0000;
 };

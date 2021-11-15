@@ -61,7 +61,7 @@ static constexpr std::array<uint16_t, 18> usb_pids =
         0xc632,  // SpaceMouse Pro Wireless Receiver
         0xc633,  // SpaceMouse Enterprise
         0xc635,  // SpaceMouse Compact
-        0xc652,  // Universal Receiver
+        //0xc652,  // Universal Receiver
 
     };
 
