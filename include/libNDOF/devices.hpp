@@ -79,6 +79,9 @@ constexpr DeviceVariant spacemouse_plus_xt      { 0x046d, 0xc603, 0x0000, 0x0000
 
 } // namespace ndof::device
 
+std::string to_string(const DeviceVariant& );
+DeviceVariant from_string(const std::string& );
+
 } // namespace ndof
 
 

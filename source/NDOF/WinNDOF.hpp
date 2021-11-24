@@ -14,6 +14,33 @@
 // License along with this library; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
 // USA
+#ifndef _LIBNDOF_WINNDOF_HPP_
+#define _LIBNDOF_WINNDOF_HPP_
 #include "libNDOF.hpp"
 
 
+namespace ndof 
+{
+
+////////////////////////////////////////////////////////////////////////////////
+// WinNDOF
+
+class WinNDOF
+{
+public:
+    virtual void begin() override;
+    virtual void end() override;
+
+    // drive NDOF manually by application HID messages on Win32
+    // TODO: see if we can create a dummy windowclass in 'begin()' with custom WinProc
+    bool inject(UINT , WPARAM, LPARAM );
+
+private:
+
+};
+
+
+} // namespace ndof
+
+
+#endif // _LIBNDOF_WINNDOF_HPP_

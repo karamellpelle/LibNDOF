@@ -16,6 +16,8 @@
 // USA
 
 #include <iostream>
+#include <stringstream>
+#include <cstdio>
 
 #include "libNDOF.hpp"
 #include "configure.hpp"
@@ -75,8 +77,23 @@ ButtonChange DeviceEvent::buttonchange() const
     return ButtonChange(); // FIXME
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// debug
 
+void NDOF::debug(const std::string& s)
+{
+    std::cout << s << std::endl;
+}
 
+void NDOF::debug(const std::ostringstream& os)
+{
+    NDOF::debug( os.str() );
+}
+
+void NDOF::debug(const char* fstr, ...)
+{
+    std::printf( fstr, ... );
+}
 
 
 } // namespace ndof

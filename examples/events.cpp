@@ -44,14 +44,13 @@ int main(int argc, char** argv)
     NDOF ndof;
     ndof.begin();
 
-    // connect and reconnect to any available device
+    // connect (and reconnect) to any available device.
+    // this is a pretty normal line, if you only will use one connected device at the time
     Connection connection = ndof.connect( Connection::Ideal() );
-    // connect to any available device, but only reconnect to that
+    // connect to any available device, but only accept reconnections to the same device
     //Connection connection = ndof.connect( Connection::Ideal()( Connection::Ideal::Reconnect::SAME_DEVICE ) );
-    //Connection connection = ndof.connect( Connection::Ideal( DeviceVariant( 0x0167, 0x003d ) )( Connection::Ideal::Reconnect::SAME_DEVICE ) );
-    //Connection connection = ndof.connect( Connection::Ideal( device::spacemouse3d )( Connection::Ideal::Reconnect::SAME_DEVICE ) );
-    //// connect and reconnect to any available "Spacemouse 3D" device
-    //Connection connection = ndof.connect( Connection::Ideal( device::spacemouse3d )( Connection::Ideal::Reconnect::SAME_VARIANT ) );
+    // only connect to "SpaceMouse" devices (connected or wireless), acc
+    //Connection connection = ndof.connect( Connection::Ideal( { device::spacemouse_compact, device::spacemouse_wireless } )( Connection::Ideal::Reconnect::SAME_VARIANT ) );
 
     while ( !is_quit() )
     {

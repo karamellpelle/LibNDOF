@@ -12,7 +12,7 @@ project( libNDOF )
 ################################################################################
 # options
 
-option( LIBNDOF_DEBUG_OUTPUT_ENABLE "build with stdout debug output" ON )
+option( LIBNDOF_DEBUG               "enable stdout debug" ON )
 option( LIBNDOF_BACKEND_HDIAPI      "use 'hdiapi' backend" ON )
 option( LIBNDOF_BACKEND_SDK         "use 3Dconnexion drivers as backend (not implemented)" OFF )
 option( LIBNDOF_TIMETAG             "tag events with time points using <chrono> STL" ON )

@@ -22,27 +22,38 @@
 #include <chrono>
 #include <mutex>
 #include <thread>
+#include <tuple>
 #include <regex>
 
 #ifdef LIBNDOF_BACKEND_HDIAPI 
 #include "hidapi.h"
 #endif
 
-#define LIBNDOF_TIMETAG // FIXME: use definitions from CMakeLists.txt
 
 namespace ndof 
 {
 
 ////////////////////////////////////////////////////////////////////////////////
-// NDOF types
+// NDOF small types
 
 // our number type  
 using uint = unsigned int;
 
-#ifdef LIBNDOF_TIMETAG
+// word types
+using uint8_t  = std::uint8_t;
+using uint16_t = std::uint16_t;
+using uint32_t = std::uint32_t;
+using uint64_t = std::uint64_t;
+using int8_t   = std::int8_t;
+using int16_t  = std::int16_t;
+using int32_t  = std::int32_t;
+using int64_t  = std::int64_t;
+
 // our time tag type
 using Time = double; // FIXME
-#endif
+
+// exeption type
+using Error = std::runtime_error;
 
 class NDOF;
 class Connection;
@@ -81,10 +92,7 @@ public:
     Button        button = Button::EMPTY;
     ButtonState   state  = ButtonState::EMPTY;
 
-
-#ifdef LIBNDOF_TIMETAG
     Time     time = 0.0; // FIXME
-#endif
 };
 
 // mouse movement
@@ -95,9 +103,7 @@ public:
 
     // TODO x, y, z etc
 
-#ifdef LIBNDOF_TIMETAG
     Time     time = 0.0; // FIXME
-#endif
 };
 
 
@@ -131,17 +137,14 @@ public:
     operator bool() const { return false; } // FIXME
     
     // for example
-    std::string name() const;
-    std::string id() const;
+    std::string name() const { return to_string( m_variant ) }
+    std::string uuid() const;
     // etc
 
 private:
-    std::string m_name;
-    std::string m_id;
+    DeviceVariant m_variant;
 
-#ifdef LIBNDOF_TIMETAG
     Time     time = 0.0; // FIXME
-#endif
 };
 
 
@@ -218,9 +221,7 @@ private:
         };
     };
 
-#ifdef LIBNDOF_TIMETAG
     Time     time = 0.0; // FIXME
-#endif
 };
 
 
@@ -252,6 +253,9 @@ public:
     
     //bool connected() const; 
     // ^ no such functionlity since connection status may change during calls.
+    
+    // TODO
+    Time time() const;
 
 public:
 
@@ -288,6 +292,9 @@ private:
 
     std::shared_ptr<ConnectionImpl> m_impl;
 
+    Time m_time_begin = 0.0;
+    Time m_time_prev = m_time_begin;
+
 };
 
 
@@ -302,20 +309,13 @@ public:
     NDOF() = default;
     NDOF(const NDOF& ) = delete;
     NDOF& operator=(const NDOF& ) = delete;
-    // ^ FIXME: are move constructors generated when default/delete?
 
-    // start ndof
-    void begin();
-    void end();
+    // start/stop ndof. may throw exceptions
+    virtual void begin() = 0;
+    virtual void end() = 0;
 
-#ifdef _WIN32
-    // drive NDOF manually by application HID messages on Win32
-    // TODO: see if we can create a dummy windowclass in 'begin()' with custom WinProc
-    bool win32_inject(UINT , WPARAM, LPARAM );
-#endif
-
-    // list of connected devices. 
-    std::vector<DeviceInfo> devices() const;
+    // all physically connected devices 
+    //std::vector<DeviceInfo> devices() const;
 
     // create connection to a device (existing or pending) based on given ideal.
     // returned Connection will not connect to a device if there already is a 
@@ -323,12 +323,28 @@ public:
     // DISCONNECTED/CONNECTED 
     Connection connect(const Connection::Ideal& );
 
-    // all physically connected devices 
-    //vector<DeviceInfo> devices() const;
-    // all connected devices
-    //vector<Connection> connections() const;
+    //// all open connections
+    //std::vector<Connection> connections() const;
 
-private:
+
+#ifdef LIBNDOF_DEBUG
+    static void debug(const std::string& );
+    static void debug(const std::ostringstream& );
+    static void debug(const char* , ...);
+#define NDOF_DEBUG(arg) NDOF::debug( (arg) )
+#else
+    //static void debug(const std::string& ) {  }
+    //static void debug(const std::ostringstream& ) {  }
+    //static void debug(const char* , ...) {  }
+#define NDOF_DEBUG(arg)
+// ^FIXME: no definition OK?
+#endif
+    
+
+
+protected:
+    bool m_initialized = false;
+
     std::forward_list<std::shared_ptr<Connection>> m_connections;
 
     // worker thread (HID)
@@ -340,6 +356,11 @@ private:
     
     bool push_hid_data(/* args */ );
     void push_deviceevent(const DeviceEvent& );
+
+    // 3DConnexion driver input/output
+    void connexion_handle_axis(const ConnexionTranslationT&, const ConnexionRotationT& );
+    void connexion_handle_buttons(const ConnexionButtonT& );
+    void connexion_handle_app();
 
 };
 
