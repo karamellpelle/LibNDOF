@@ -17,33 +17,8 @@
 #ifndef _LIBNDOF_CONNEXIONMACOS_HPP_
 #define _LIBNDOF_CONNEXIONMACOS_HPP_
 #include <cstdint>
+#include "helpers.hpp"
 
-
-////////////////////////////////////////////////////////////////////////////////
-// class EnableBitMaskOperators a where
-// TODO: into helpers.hpp
-
-// https://wiggling-bits.net/using-enum-classes-as-type-safe-bitmasks/
-template<typename Enum>
-struct EnableBitMaskOperators
-{
-    static const bool enable = false;
-};
-
-template<typename Enum>
-typename std::enable_if<EnableBitMaskOperators<Enum>::enable, Enum>::type
-operator |(Enum lhs, Enum rhs)
-{
-    using UnderlyingT = typename std::underlying_type<Enum>::type;
-    return static_cast<Enum> ( static_cast<UnderlyingT>( lhs ) | static_cast<UnderlyingT>( rhs ) );
-}
-
-#define ENABLE_BITMASK_OPERATORS(x)  \
-template<>                           \
-struct EnableBitMaskOperators<x>     \
-{                                    \
-    static const bool enable = true; \
-};
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -70,6 +45,7 @@ using PFN_ConnexionClientControl = int16_t (*)(uint16_t clientID, uint32_t messa
 using PFN_ConnexionControl = int16_t (*)(uint32_t message, int32_t param, int32_t* result ); // legacy
 
 // get preferences of device (which one?)
+class ConnexionDevicePrefs;
 using PFN_ConnexionGetCurrentDevicePrefs = int16_t (*)(uint32_t deviceID, ConnexionDevicePrefs* prefs );
 
 // set labels using 32 UTF-8 c strings (null terminated)
@@ -96,7 +72,7 @@ enum class ConnexionAPIVersion
 {
     EMPTY,
     LEGACY,   // there may be different legacy versions
-    MODERN;   // this may become outdated, but this type is internal and not public exposed 
+    MODERN,   // this may become outdated, but this type is internal and not public exposed 
 };
 
 inline bool empty_ConnexionAPIVersion(ConnexionAPIVersion e)
@@ -107,7 +83,7 @@ inline bool empty_ConnexionAPIVersion(ConnexionAPIVersion e)
 ////////////////////////////////////////////////////////////////////////////////
 // ConnexionMsg
 
-enum class : unsigned int ConnexionMsg
+enum class ConnexionMsg : unsigned int 
 {
     EMPTY            = 0,
     DEVICE_STATE     = '3dSR',
@@ -115,7 +91,7 @@ enum class : unsigned int ConnexionMsg
     CALIBRATE_DEVICE = '3dSC',
 };
 
-inline unsigned int from_ConnextionMsg(ConnexionMsg e)
+inline unsigned int from_ConnexionMsg(ConnexionMsg e)
 {
     return static_cast<uint32_t>( e );
 }
@@ -129,14 +105,14 @@ inline ConnexionMsg to_ConnexionMsg(unsigned int e)
     case 10:return ConnexionMsg::CALIBRATE_DEVICE;
     };
 
-    return ConnectionMsg::EMPTY;
+    return ConnexionMsg::EMPTY;
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
 // ConnexionCtl
 
-enum class : uint32_t ConnexionCtl
+enum class ConnexionCtl : uint32_t 
 {
     EMPTY             = 0,
     SET_LED_STATE     = '3dsl',
@@ -157,7 +133,7 @@ inline uint32_t from_ConnexionCtl(ConnexionCtl e)
 ////////////////////////////////////////////////////////////////////////////////
 // ConnexionCmd
 
-enum class : uint16_t ConnexionCmd
+enum class ConnexionCmd : uint16_t
 {
     EMPTY           = 0,  // kConnexionCmdNone
     HANDLE_RAW_DATA = 1,  // kConnexionCmdHandleRawData
@@ -166,28 +142,28 @@ enum class : uint16_t ConnexionCmd
     APP_SPECIFIC    = 10, // kConnexionCmdAppSpecific
 };
 
-inline uint16_t from_ConnexionCmd(ConnectionCmd e)
+inline uint16_t from_ConnexionCmd(ConnexionCmd e)
 {
     return static_cast<uint16_t>( e );
 }
 
 // TODO: constexpr for C++14 and above (allows if and switch)
-inline ConnectionCmd to_ConnexionCmd(uint16_t e)
+inline ConnexionCmd to_ConnexionCmd(uint16_t e)
 {
     switch (e)
     {
-    case 3: return ConnexionCmd::AXIS;
-    case 2: return ConnexionCmd::BUTTONS;
-    case 10:return ConnexionCmd::APP;
+    case 3: return ConnexionCmd::HANDLE_AXIS;
+    case 2: return ConnexionCmd::HANDLE_BUTTONS;
+    case 10:return ConnexionCmd::APP_SPECIFIC;
     };
 
-    return ConnectionCmd::EMPTY;
+    return ConnexionCmd::EMPTY;
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
 // 
-enum class : uint16_t ConnexionClientMode
+enum class ConnexionClientMode : uint16_t
 {
     TAKE_OVER = 1,  // take over device completely, driver no longer executes assignments
     PLUGIN    = 2,  // receive plugin assignments only, let driver take care of its own
@@ -201,7 +177,7 @@ inline uint16_t from_ConnexionClientMode(ConnexionClientMode e)
 ////////////////////////////////////////////////////////////////////////////////
 // 
 
-enum class : uint32_t ConnexionMask
+enum class ConnexionMask : uint32_t
 {
     EMPTY      = 0x0000,
 
@@ -233,10 +209,6 @@ enum class : uint32_t ConnexionMask
 
 };
 
-// instance EnableBitMaskOperators ConnexionMask where
-ENABLE_BITMASK_OPERATORS( ConnexionMask )
-
-
 inline uint32_t from_ConnexionMask(ConnexionMask e)
 {
     return static_cast<uint32_t>( e );
@@ -245,9 +217,9 @@ inline uint32_t from_ConnexionMask(ConnexionMask e)
 
 ////////////////////////////////////////////////////////////////////////////////
 // ConnexionMaskButton
-enum class : uint32_t ConnexionMaskButton
+enum class ConnexionMaskButton : uint32_t
 {
-    EMPTY    = 0x00000000;
+    EMPTY    = 0x00000000,
 
     BUTTON1  = 0x00000001,
     BUTTON2  = 0x00000002,
@@ -285,9 +257,6 @@ enum class : uint32_t ConnexionMaskButton
     ALL      = 0xFFFFFFFF,
 };
 
-// instance EnableBitMaskOperators ConnexionMask where
-ENABLE_BITMASK_OPERATORS( ConnexionMaskButton )
-
 inline uint32_t from_ConnexionMaskButton(ConnexionMaskButton e)
 {
     return static_cast<uint32_t>( e );
@@ -324,38 +293,26 @@ struct ConnexionDeviceState
 };
 #pragma pack( pop )
 
-
-////////////////////////////////////////////////////////////////////////////////
-// ConnexionRotation
-
-using ConnexionRotation    = std::tuple<int16_t, int16_t, int16_t>;
-
-
-////////////////////////////////////////////////////////////////////////////////
-// ConnexionTranslation
-
-using ConnexionTranslation = std::tuple<int16_t, int16_t, int16_t>;
-
-
-////////////////////////////////////////////////////////////////////////////////
-// ConnexionButtonsT
-
-class ConnexionButtons
+// create ConnexionButtons from macOS client API
+template <typename T>
+ConnexionButtons to_ConnexionButtons(const T& b)
 {
-    explicit ConnexionButtons(uint8_t );
-    explicit ConnexionButtons(uint32_t );
-
-    using Mapping = uint32_t[];
-
-private:
-    uint32_t m_bits = 0x00000000;
-
-    Mapping m_map = nullptr;
-    static constexpr Mapping map_new;
-};
+    return ConnexionButtons( static_cast<uint32_t>( b ) );
+}
 
 } // namespace macos
 } // namespace ndof
+
+
+////////////////////////////////////////////////////////////////////////////////
+// class template specializations must occur at global scope
+
+// instance EnableBitMaskOperators ConnexionMask where
+INSTANCE_BITMASK( ndof::macos::ConnexionMask );
+
+// instance EnableBitMaskOperators ConnexionMaskButton where
+INSTANCE_BITMASK( ndof::macos::ConnexionMaskButton );
+
 
 #endif
 

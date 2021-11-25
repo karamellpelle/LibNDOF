@@ -16,6 +16,7 @@
 // USA
 #ifndef _LIBNDOF_LIBNDOF_HPP_
 #define _LIBNDOF_LIBNDOF_HPP_
+#include "LibNDOF/Connexion.hpp"
 #include <queue>
 #include <forward_list>
 #include <vector>
@@ -24,6 +25,7 @@
 #include <thread>
 #include <tuple>
 #include <regex>
+#include <sstream>
 
 #ifdef LIBNDOF_BACKEND_HDIAPI 
 #include "hidapi.h"
@@ -137,7 +139,7 @@ public:
     operator bool() const { return false; } // FIXME
     
     // for example
-    std::string name() const { return to_string( m_variant ) }
+    std::string name() const;
     std::string uuid() const;
     // etc
 
@@ -306,9 +308,12 @@ private:
 class NDOF
 {
 public:
-    NDOF() = default;
+    NDOF();
     NDOF(const NDOF& ) = delete;
     NDOF& operator=(const NDOF& ) = delete;
+
+    // logging
+    void logger(std::ostream* );
 
     // start/stop ndof. may throw exceptions
     virtual void begin() = 0;
@@ -327,14 +332,15 @@ public:
     //std::vector<Connection> connections() const;
 
 
+    // debug: more low level details than logging
 #ifdef LIBNDOF_DEBUG
     static void debug(const std::string& );
     static void debug(const std::ostringstream& );
-    static void debug(const char* , ...);
+    //static void debug(const char* , ...);
 #define NDOF_DEBUG(arg) NDOF::debug( (arg) )
 #else
-    //static void debug(const std::string& ) {  }
-    //static void debug(const std::ostringstream& ) {  }
+    static void debug(const std::string& ) {  }
+    static void debug(const std::ostringstream& ) {  }
     //static void debug(const char* , ...) {  }
 #define NDOF_DEBUG(arg)
 // ^FIXME: no definition OK?
@@ -343,7 +349,13 @@ public:
 
 
 protected:
+    std::ostream* m_logger = nullptr;
     bool m_initialized = false;
+
+    std::ostream& log();
+    std::ostream& log(const std::string& );
+    std::ostream& log(const char* , ...);
+
 
     std::forward_list<std::shared_ptr<Connection>> m_connections;
 
@@ -358,10 +370,9 @@ protected:
     void push_deviceevent(const DeviceEvent& );
 
     // 3DConnexion driver input/output
-    void connexion_handle_axis(const ConnexionTranslationT&, const ConnexionRotationT& );
-    void connexion_handle_buttons(const ConnexionButtonT& );
+    void connexion_handle_axis(const ConnexionTranslation&, const ConnexionRotation& );
+    void connexion_handle_buttons(const ConnexionButtons& );
     void connexion_handle_app();
-
 };
 
 

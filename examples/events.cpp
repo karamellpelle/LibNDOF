@@ -1,5 +1,6 @@
 #include <iostream>
 #include "libNDOF.hpp"
+#include "LibNDOF/MacOSNDOF.hpp"
 #include "libNDOF/devices.hpp"
 
 using uint = ndof::uint;
@@ -41,7 +42,7 @@ int main(int argc, char** argv)
     using namespace ndof;
 
     // create NDOF manager
-    NDOF ndof;
+    MacOSNDOF ndof;
     ndof.begin();
 
     // connect (and reconnect) to any available device.

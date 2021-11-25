@@ -16,8 +16,8 @@
 // USA
 #ifndef _LIBNDOF_MACOSNDOF_HPP_
 #define _LIBNDOF_MACOSNDOF_HPP_
+#include <memory>
 #include "libNDOF.hpp"
-
 
 namespace ndof 
 {
@@ -25,29 +25,24 @@ namespace ndof
 ////////////////////////////////////////////////////////////////////////////////
 // MacOSNDOF
 
-class MacOSNDOF
+class MacOSNDOF_Private;
+
+class MacOSNDOF : public NDOF
 {
+friend class MacOSNDOF_Private;
+
 public:
+    MacOSNDOF();
+    ~MacOSNDOF();
+
     virtual void begin() override;
     virtual void end() override;
 
     // the canonical NDOF object used for API communication
-    static MacOSNDOF* ndof                             = nullptr;
+    static MacOSNDOF* ndof;
     
     ////////////////////////////////////////////////////////////////////////////
-
-    // 3Dconnexion framework
-    void* m_connexion_dyld                             = nullptr;
-    macos::ConnexionAPIVersion m_connexion_api_version = macos::ConnexionAPIVersion::EMPTY;
-    // 3Dconnexion clientID (connexion to 3Dconnexion driver)
-    uint16_t m_connexion_client_id                     = 0;
-
-private: // FIXME: can callbacks be private?
-    // callbacks for 3Dconnexion API framework
-    static void connexion_MessageHandler(unsigned int productID, unsigned int messageT , void* messageArg);
-    static void connexion_AddedHandler(unsigned int productID );
-    static void connexion_RemovedHandler(unsigned int productID );
-
+    std::unique_ptr<MacOSNDOF_Private> m_private;
 };
 
 } // namespace ndof

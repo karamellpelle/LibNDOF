@@ -14,13 +14,11 @@
 // License along with this library; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
 // USA
+#include "libNDOF.hpp"
+#include "configure.hpp"
 
 #include <iostream>
 #include <array>
-
-#include "libNDOF.hpp"
-#include "values.hpp"
-#include "configure.hpp"
 
 
 namespace ndof
@@ -69,17 +67,38 @@ static constexpr std::array<uint16_t, 18> usb_pids =
 ////////////////////////////////////////////////////////////////////////////////
 /// NDOF
 
-void NDOF::begin()
+NDOF::NDOF()
 {
-    std::cout << "ndof::NDOF::begin()"  << std::endl
-              << "  version major: " << LIBNDOF_VERSION_MAJOR << std::endl
-              << "  version minor: " << LIBNDOF_VERSION_MINOR << std::endl
-              << std::endl;
-
-    // TODO: setup hidapi, launch thread
-    // m_eventqueue.emplace<DeviceEvent>( args );
+    // log to std::cout as default
+    m_logger = &std::cout;
 }
 
+// set logger output stream. only makes sense outside begin()-end().
+// no ownership is taken
+void NDOF::logger(std::ostream* l)
+{
+    if ( !m_initialized ) m_logger = l;
+}
+
+std::ostream& NDOF::log() 
+{
+    if ( m_logger ) return *m_logger;
+
+    // TODO: return dummy std::ostream
+    return std::cout;
+}
+
+// adds newline
+std::ostream& NDOF::log(const std::string& str)
+{
+    return log() << str << std::endl;   
+}
+
+std::ostream& NDOF::log(const char* cstr, ...)
+{
+    NDOF::debug(  "Warning: NDOF::log(const char* ) not implemented" );
+    return log();
+}
 
 Connection NDOF::connect(const Connection::Ideal& ideal)
 {
@@ -89,6 +108,32 @@ Connection NDOF::connect(const Connection::Ideal& ideal)
     // return a Connection to that device.
 
     return Connection();
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// connexion_handle_axis
+void NDOF::connexion_handle_axis(const ConnexionTranslation& trans, const ConnexionRotation& rot)
+{
+    NDOF::debug( "NDOF::connexion_handle_axis()" );
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// connexion_handle_buttons
+
+void NDOF::connexion_handle_buttons(const ConnexionButtons& buttons)
+{
+
+    NDOF::debug( "NDOF::connexion_handle_buttons()" );
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// connexion_handle_app
+void NDOF::connexion_handle_app()
+{
+    NDOF::debug( "NDOF::connexion_handle_app()" );
 
 }
 

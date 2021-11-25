@@ -14,11 +14,39 @@
 // License along with this library; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
 // USA
-#include "libNDOF.hpp"
-#include "ConnexionMacOS.hpp"
+#include "LibNDOF/MacOSNDOF.hpp"
+#include "LibNDOF/ConnexionMacOS.hpp"
+#include <iostream>
+#include <string>
 #include <cstdint>
 #include <dlfcn.h>
 #include <unistd.h>
+#include <libproc.h>
+
+
+////////////////////////////////////////////////////////////////////////////////
+// MacOSNDOF_Private: private data so we don't expose everything, especially ConnexionMacOS.hpp
+
+namespace ndof
+{
+
+class MacOSNDOF_Private
+{
+public:
+    // 3Dconnexion framework
+    void* m_connexion_dyld                             = nullptr;
+    macos::ConnexionAPIVersion m_connexion_api_version = macos::ConnexionAPIVersion::EMPTY;
+    // 3Dconnexion clientID (connexion to 3Dconnexion driver)
+    uint16_t m_connexion_client_id                     = 0;
+
+    // callbacks for 3Dconnexion API framework
+    static void connexion_MessageHandler(unsigned int productID, unsigned int messageT , void* messageArg);
+    static void connexion_AddedHandler(unsigned int productID );
+    static void connexion_RemovedHandler(unsigned int productID );
+};
+
+} // namespace NDOF
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // framework API functions
@@ -30,9 +58,9 @@
 template <typename PFN>
 PFN connexion_getProcAddress(const char* fname)
 {
-    PFN ret = reinterpret_cast<PFN>(  ::dlsym( MacOSNDOF::ndof->m_connexion_dyld, fname ) );
+    PFN ret = reinterpret_cast<PFN>(  ::dlsym( ndof::MacOSNDOF::ndof->m_private->m_connexion_dyld, fname ) );
 #ifdef LIBNDOF_DEBUG 
-    NDOF::debug( "    loaded 3Dconnexion framework function %32s(): %08x\n", fname, ret );
+    //ndof::NDOF::debug( "    loaded 3Dconnexion framework function %32s(): %08x\n", fname, ret ); // FIXME
 #endif
 
     return ret;
@@ -42,7 +70,7 @@ PFN connexion_getProcAddress(const char* fname)
 #define CONNEXION_FUNCTION_PTR(name) PFN_##name name = nullptr
 
 // load api function into function pointer
-#define CONNEXION_LOAD_FUNCTION(name) name = connexion_getProcAddress<PFN_##name>( function_ptr )
+#define CONNEXION_LOAD_FUNCTION(name) ( name = connexion_getProcAddress< PFN_##name >( #name ) )
 
 // create function pointers to 3Dconnexion framework functions
 CONNEXION_FUNCTION_PTR( SetConnexionHandlers );         // modern
@@ -97,46 +125,54 @@ std::vector<uint8_t> get_proc_pstr()
 }
 
 
-
 ////////////////////////////////////////////////////////////////////////////////
 // MacOSNDOF::begin()
 
+MacOSNDOF::MacOSNDOF() : m_private( new MacOSNDOF_Private() )
+{
+    
+}
+
+MacOSNDOF::~MacOSNDOF() = default;
+
+
 void MacOSNDOF::begin()
 {
-    NDOF::debug( __FUNC__ );
+
     MacOSNDOF::ndof = this;
     
     if ( !m_initialized )
     {
-        // install callbacks
+        log( "initializing MacOSNDOF:" );
+
         // retrieve vid pid
         // set button mask
 
-        static constexpr char* connexion_dyld_path = "/Library/Frameworks/3DconnexionClient.framework/3DconnexionClient";
-
-        NDOF::debug( std::ostringstream() << "    opening framework '" << connexion_dyld_path << "'" );
-        m_connexion_dyld = ::dlopen( connexion_dyld_path, RTLD_LAZY | RTLD_LOCAL );
-        if ( !m_connexion_dyld ) throw Error( "could not load 3Dconnexion client (are system drivers installed?)" );
+        static constexpr const char* connexion_dyld_path = "/Library/Frameworks/3DconnexionClient.framework/3DconnexionClient";
+       
+        log() << "    opening framework '" << connexion_dyld_path << "'" << std::endl;
+        m_private->m_connexion_dyld = ::dlopen( connexion_dyld_path, RTLD_LAZY | RTLD_LOCAL );
+        if ( !m_private->m_connexion_dyld ) throw Error( "could not load 3Dconnexion client (are system drivers installed?)" );
 
         // load API function: SetConnexionHandlers (modern) or InstallConnexionHandlers (legacy)
         // set ConnexionAPIVersion based on availability
         CONNEXION_LOAD_FUNCTION( SetConnexionHandlers );
         if ( SetConnexionHandlers )
         {
-            m_connexion_api_version = macos::ConnexionAPIVersion::MODERN; 
-            // TODO: logging
+            m_private->m_connexion_api_version = macos::ConnexionAPIVersion::MODERN; 
+            log( "    3Dconnexion client API available" );
         }
         else
         {
-            NDOF::debug( "    'SetConnextionHandlers()' not available, trying legacy API function 'InstallConnexionHandlers()'" );
-            // TODO: logging: "trying legacy drivers"
+            log( "    no modern 3Dconnexion client API available; trying legacy client API" );
+
             // try legacy API function
             if ( CONNEXION_LOAD_FUNCTION( InstallConnexionHandlers ) )
             {
-                m_connexion_api_version = macos::ConnexionAPIVersion::LEGACY;
+                m_private->m_connexion_api_version = macos::ConnexionAPIVersion::LEGACY;
             }
         }
-        if ( macos::empty_ConnexionAPIVersion( m_connexion_api_version ) ) throw Error( "could not load 'XXXConnexionHandlers()'" );
+        if ( macos::empty_ConnexionAPIVersion( m_private->m_connexion_api_version ) ) throw Error( "could not load 3Dconnexion client API (are system drivers installed?)" );
         
         // load the rest of API functions
         CONNEXION_LOAD_FUNCTION( CleanupConnexionHandlers );
@@ -152,19 +188,19 @@ void MacOSNDOF::begin()
         // TODO: logging
 
         uint16_t err = 0;
-        if ( m_connexion_api_version == macos::ConnexionAPIVersion::MODERN )
+        if ( m_private->m_connexion_api_version == macos::ConnexionAPIVersion::MODERN )
         {
             constexpr bool seperate_thread = false; // FIXME!
-            if ( uint16_t err = SetConnexionHandlers( MacOSNDOF::connexion_messageHandler, MacOSNDOF::connexion_AddedHandler, MacOSNDOF::connexion_RemovedHandler, sepeate_thread ) )
+            if ( uint16_t err = SetConnexionHandlers( MacOSNDOF_Private::connexion_MessageHandler, MacOSNDOF_Private::connexion_AddedHandler, MacOSNDOF_Private::connexion_RemovedHandler, seperate_thread ) )
             {
-                throw Error( "'SetConnexionHandlers()' failed (error code: " + std::stoul( err ) + ")" );
+                throw Error( "could not setup client API callbacks (error code: " + std::to_string( err ) + ")" );
             }
         }
-        if ( m_connexion_api_version == macos::ConnexionAPIVersion::LEGACY )
+        if ( m_private->m_connexion_api_version == macos::ConnexionAPIVersion::LEGACY )
         {
-            if ( uint16_t err = InstallConnexionHandlers( MacOSNDOF::connexion_messageHandler, MacOSNDOF::connexion_AddedHandler, MacOSNDOF::connexion_RemovedHandler ) ) 
+            if ( uint16_t err = InstallConnexionHandlers( MacOSNDOF_Private::connexion_MessageHandler, MacOSNDOF_Private::connexion_AddedHandler, MacOSNDOF_Private::connexion_RemovedHandler ) ) 
             {
-                throw Error( "legacy 'InstallConnexionHandlers()' failed (error code: " + std::stoul( err ) + ")" );
+                throw Error( "could not setup legacy client API callbacks (error code: " + std::to_string( err ) + ")" );
             }
         }
 
@@ -176,15 +212,22 @@ void MacOSNDOF::begin()
         //    * https://stackoverflow.com/questions/1875912/naming-convention-for-cfbundlesignature-and-cfbundleidentifier
         // 
         auto name_pstr = get_proc_pstr(); // ^ current process name using pid
-        RegisterConnexionClient( 0, name_pstr, macos::from_ConnexionClientMode( macos::ConnexionClientMode::TAKE_OVER ), macos::from_ConnexionMask( macos::ConnexionMask::ALL ) ) ;
+        m_private->m_connexion_client_id = RegisterConnexionClient( 0, name_pstr.data(), macos::from_ConnexionClientMode( macos::ConnexionClientMode::TAKE_OVER ), macos::from_ConnexionMask( macos::ConnexionMask::ALL ) );
 
-        // modern API needs specific call to set button mask
-        if ( m_connexion_api_version == macos::ConnexionAPIVersion::MODERN )
+        // FIXME: is ClientID 0 a failure?
+        if ( m_private->m_connexion_client_id == 0 )
         {
-            SetConnexionClientButtonMask( m_connexion_client_id, macos::ConnexionMaskButton::ALL );
+            throw Error( "API could not register client" ); // TODO: print pascal string
         }
 
-  
+        // modern API needs specific call to set button mask
+        if ( m_private->m_connexion_api_version == macos::ConnexionAPIVersion::MODERN )
+        {
+            SetConnexionClientButtonMask( m_private->m_connexion_client_id, macos::from_ConnexionMaskButton( macos::ConnexionMaskButton::ALL ) );
+        }
+
+        log( "    initialized." );
+
         m_initialized = true;
     }
 
@@ -199,15 +242,15 @@ void MacOSNDOF::end()
     if ( m_initialized )
     {
         // unregister client
-        UnregisterConnexionClient( m_connexion_client_id );
-        m_connexion_client_id = 0;
+        UnregisterConnexionClient( m_private->m_connexion_client_id );
+        m_private->m_connexion_client_id = 0;
 
         // remove callbacks
         CleanupConnexionHandlers();
 
         // close framework
-        ::dlclose( m_connexion_dyld );
-        m_connexion_dyld = nullptr;
+        ::dlclose( m_private->m_connexion_dyld );
+        m_private->m_connexion_dyld = nullptr;
 
 
         m_initialized = false;
@@ -217,45 +260,42 @@ void MacOSNDOF::end()
 ////////////////////////////////////////////////////////////////////////////////
 // connexion handlers
 
-void MacOSNDOF::connexion_MessageHandler(unsigned int productID, unsigned int msg, void* msg_arg)
+void MacOSNDOF_Private::connexion_MessageHandler(unsigned int productID, unsigned int msg, void* msg_arg)
 {
-    // case command
-    // kConnexionCmdHandleAxis: NDOF update translation and rotation
-    // kConnexionCmdHandleButtons: NDOF update buttons from bits
-    // kConnexionCmdAppSpecific: log
-    // otherwise: mystic device command
-    switch ( to_ConnexionMsg( msg ) )
+    MacOSNDOF* ndof                 = MacOSNDOF::ndof;
+
+    switch ( macos::to_ConnexionMsg( msg ) )
     {
     // device state changed
-    case ConnexionMsg::DEVICE_STATE:
+    case macos::ConnexionMsg::DEVICE_STATE:
     {
-        auto* state = static_cast<ConnexionDeviceState>( msg_arg );
+        auto* state = static_cast<macos::ConnexionDeviceState*>( msg_arg );
 
-        switch ( to_ConnextionCmd( state->command ) )
+        switch ( macos::to_ConnexionCmd( state->command ) )
         {
-            case ConnexionCmd::APP_SPECIFIC:
+            case macos::ConnexionCmd::HANDLE_AXIS:
             {
-                
-            }
-            break;
-            
-            case ConnexionCmd::HANDLE_AXIS:
-            {
-                ConnexionTranslation translate( state->translate[0], state->translate[1], state->translate[2] );
-                ConnexionRotation rotate( state->rotate[0], state->rotate[1], state->rotate[2] );
+                ConnexionTranslation translate( state->axis[0], state->axis[1], state->axis[2] );
+                ConnexionRotation rotate( state->axis[3], state->axis[4], state->axis[5] );
 
                 ndof->connexion_handle_axis( translate, rotate );
             }
             break;
 
-            case ConnexionCmd::HANDLE_BUTTONS:
+            case macos::ConnexionCmd::HANDLE_BUTTONS:
             {
-                if ( connexion_driver_version == ConnexionDriverVersion::OLD ) MacOSNDOF::ndof->connexion_handle_buttons( ConnexionButtons( state->buttons_old ) ); // buttons_old :: uint16_t
-                if ( connexion_driver_version == ConnexionDriverVersion::NEW ) MacOSNDOF::ndof->connexion_handle_buttons( ConnexionButtons( state->buttons_new ) ); // buttons_new :: uint16_t
+                if ( ndof->m_private->m_connexion_api_version == macos::ConnexionAPIVersion::LEGACY ) 
+                {
+                    MacOSNDOF::ndof->connexion_handle_buttons( macos::to_ConnexionButtons( state->buttons_old ) ); // buttons_old :: uint8_t
+                }
+                if ( ndof->m_private->m_connexion_api_version == macos::ConnexionAPIVersion::MODERN )
+                {
+                    MacOSNDOF::ndof->connexion_handle_buttons( macos::to_ConnexionButtons( state->buttons_new ) );          // buttons_new :: uint32_t
+                }
             }
             break;
 
-            case ConnexionCmd::APP_SPECIFIC:
+            case macos::ConnexionCmd::APP_SPECIFIC:
             {
                 NDOF::debug( std::ostringstream() << "ConnexionMessageHandler: ConnexionCmd::APP_SPECIFIC" );
                 //NDOF_DEBUG( std::ostringstream() << "ConnexionCmd::APP_SPECIFIC" ); // TODO!
@@ -272,13 +312,13 @@ void MacOSNDOF::connexion_MessageHandler(unsigned int productID, unsigned int ms
     }
     break;
 
-    case ConnexionMsg::PREFS_CHANGED:
+    case macos::ConnexionMsg::PREFS_CHANGED:
     {
         NDOF::debug( "ConnexionMessageHandler: ConnexionMsg::PREFS_CHANGED" );
     }
     break;
 
-    case ConnexionMsg::CALIBRATE_DEVICE:
+    case macos::ConnexionMsg::CALIBRATE_DEVICE:
     {
         NDOF::debug( "ConnexionMessageHandler: ConnexionMsg::CALIBRATE_DEVICE" );
     }
@@ -289,21 +329,21 @@ void MacOSNDOF::connexion_MessageHandler(unsigned int productID, unsigned int ms
     }
 };
 
-void MacOSNDOF::connexion_AddedHandler(unsigned int productID)
+void MacOSNDOF_Private::connexion_AddedHandler(unsigned int productID)
 {
-    NDOF::debug( __FUNC__ );
+    NDOF::debug( "MacOSNDOF::connexion_AddedHandler()");
 }
 
-void MacOSNDOF::connexion_RemovedHandler(unsigned int productID)
+void MacOSNDOF_Private::connexion_RemovedHandler(unsigned int productID)
 {
-    NDOF::debug( __FUNC__ );
+    NDOF::debug( "MacOSNDOF::connexion_RemovedHandler()");
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
 // 
 
-MacOSNDOF::ndof = nullptr;
+MacOSNDOF* MacOSNDOF::ndof = nullptr;
 
 
 } // namespace ndof
