@@ -60,7 +60,8 @@ PFN connexion_getProcAddress(const char* fname)
 {
     PFN ret = reinterpret_cast<PFN>(  ::dlsym( ndof::MacOSNDOF::ndof->m_private->m_connexion_dyld, fname ) );
 #ifdef LIBNDOF_DEBUG 
-    //ndof::NDOF::debug( "    loaded 3Dconnexion framework function %32s(): %08x\n", fname, ret ); // FIXME
+    //ndof::NDOF_DEBUG( "    loaded 3Dconnexion framework function %32s(): %08x\n", fname, ret ); // FIXME
+    ndof::NDOF_DEBUG( std::ostringstream() << "    loaded 3Dconnexion framework function " << (void*)( ret ) << " (" << fname << ")" );
 #endif
 
     return ret;
@@ -185,8 +186,6 @@ void MacOSNDOF::begin()
         //CONNEXION_LOAD_FUNCTION( ConnexionGetCurrentDevicePrefs ); 
         //CONNEXION_LOAD_FUNCTION( ConnexionSetButtonLabels ); 
 
-        // TODO: logging
-
         uint16_t err = 0;
         if ( m_private->m_connexion_api_version == macos::ConnexionAPIVersion::MODERN )
         {
@@ -297,14 +296,13 @@ void MacOSNDOF_Private::connexion_MessageHandler(unsigned int productID, unsigne
 
             case macos::ConnexionCmd::APP_SPECIFIC:
             {
-                NDOF::debug( std::ostringstream() << "ConnexionMessageHandler: ConnexionCmd::APP_SPECIFIC" );
-                //NDOF_DEBUG( std::ostringstream() << "ConnexionCmd::APP_SPECIFIC" ); // TODO!
+                NDOF_DEBUG( std::ostringstream() << "ConnexionMessageHandler: ConnexionCmd::APP_SPECIFIC" );
             }
             break;
             
             default:
             {
-                NDOF::debug( std::ostringstream() << "ConnexionMessageHandler: unknown ConnexionCmd: " << state->command );
+                NDOF_DEBUG( std::ostringstream() << "ConnexionMessageHandler: unknown ConnexionCmd: " << state->command );
             }
             break;
         }
@@ -314,29 +312,29 @@ void MacOSNDOF_Private::connexion_MessageHandler(unsigned int productID, unsigne
 
     case macos::ConnexionMsg::PREFS_CHANGED:
     {
-        NDOF::debug( "ConnexionMessageHandler: ConnexionMsg::PREFS_CHANGED" );
+        NDOF_DEBUG( "ConnexionMessageHandler: ConnexionMsg::PREFS_CHANGED" );
     }
     break;
 
     case macos::ConnexionMsg::CALIBRATE_DEVICE:
     {
-        NDOF::debug( "ConnexionMessageHandler: ConnexionMsg::CALIBRATE_DEVICE" );
+        NDOF_DEBUG( "ConnexionMessageHandler: ConnexionMsg::CALIBRATE_DEVICE" );
     }
     break;
 
     default:
-        NDOF::debug( std::ostringstream() << "ConnexionMessageHandler: unknown ConnexionMsg: " << msg );
+        NDOF_DEBUG( std::ostringstream() << "ConnexionMessageHandler: unknown ConnexionMsg: " << msg );
     }
 };
 
 void MacOSNDOF_Private::connexion_AddedHandler(unsigned int productID)
 {
-    NDOF::debug( "MacOSNDOF::connexion_AddedHandler()");
+    NDOF_DEBUG( "MacOSNDOF::connexion_AddedHandler()");
 }
 
 void MacOSNDOF_Private::connexion_RemovedHandler(unsigned int productID)
 {
-    NDOF::debug( "MacOSNDOF::connexion_RemovedHandler()");
+    NDOF_DEBUG( "MacOSNDOF::connexion_RemovedHandler()");
 }
 
 

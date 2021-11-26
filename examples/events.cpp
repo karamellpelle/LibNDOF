@@ -39,19 +39,29 @@ bool is_quit()
 
 int main(int argc, char** argv)
 {
-    using namespace ndof;
+    ndof::Connection connection;
+    try
+    {
+        // create NDOF manager
+        ndof::MacOSNDOF ndof;
+        // TODO: set logger?
+        ndof.begin();
 
-    // create NDOF manager
-    MacOSNDOF ndof;
-    ndof.begin();
-
-    // connect (and reconnect) to any available device.
-    // this is a pretty normal line, if you only will use one connected device at the time
-    Connection connection = ndof.connect( Connection::Ideal() );
-    // connect to any available device, but only accept reconnections to the same device
-    //Connection connection = ndof.connect( Connection::Ideal()( Connection::Ideal::Reconnect::SAME_DEVICE ) );
-    // only connect to "SpaceMouse" devices (connected or wireless), acc
-    //Connection connection = ndof.connect( Connection::Ideal( { device::spacemouse_compact, device::spacemouse_wireless } )( Connection::Ideal::Reconnect::SAME_VARIANT ) );
+        // connect (and reconnect) to any available device.
+        // this is a pretty normal line, if you only will use one connected device at the time
+        //ndof::Connection connection = ndof.connect( ndof::Connection::Ideal() );
+        connection = ndof.connect( ndof::Connection::Ideal() );
+        // connect to any available device, but only accept reconnections to the same device
+        //Connection connection = ndof.connect( Connection::Ideal()( Connection::Ideal::Reconnect::SAME_DEVICE ) );
+        // only connect to "SpaceMouse" devices (connected or wireless), acc
+        //Connection connection = ndof.connect( Connection::Ideal( { device::spacemouse_compact, device::spacemouse_wireless } )( Connection::Ideal::Reconnect::SAME_VARIANT ) );
+        
+    }
+    catch (ndof::Error e)
+    {
+        std::cerr << e.what() << std::endl;
+        return -1;
+    }
 
     while ( !is_quit() )
     {

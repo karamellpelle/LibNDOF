@@ -19,6 +19,7 @@
 
 #include <iostream>
 #include <array>
+#include <stdio.h>
 
 
 namespace ndof
@@ -65,7 +66,29 @@ static constexpr std::array<uint16_t, 18> usb_pids =
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// NDOF
+/// debug
+
+#ifdef LIBNDOF_DEBUG
+//void NDOF_DEBUG(const std::string& s)
+//{
+//    std::cout << s << std::endl;
+//}
+//
+//void NDOF_DEBUG(const std::ostringstream& os)
+//{
+//    NDOF_DEBUG( os.str() );
+//}
+//
+//void NDOF_DEBUG(const char* fstr, ...)
+//{
+//   std::printf( fstr, ... );
+//}
+//
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+/// NDOF 
+
 
 NDOF::NDOF()
 {
@@ -94,12 +117,20 @@ std::ostream& NDOF::log(const std::string& str)
     return log() << str << std::endl;   
 }
 
-std::ostream& NDOF::log(const char* cstr, ...)
-{
-    NDOF::debug(  "Warning: NDOF::log(const char* ) not implemented" );
-    return log();
-}
-
+//std::ostream& NDOF::log(const char* fmt, ...)
+//{
+//    // TODO: write to m_logger!
+//
+//    //NDOF_DEBUG(  "Warning: NDOF::log(const char* ) not implemented" );
+//    //  * https://docs.microsoft.com/en-us/archive/msdn-magazine/2015/march/windows-with-c-using-printf-with-modern-c
+//    va_list args;
+//    va_start( args, fmt );
+//    std::printf( fmt, args );
+//    va_end(args);
+//
+//    return log();
+//}
+//
 Connection NDOF::connect(const Connection::Ideal& ideal)
 {
     std::cout << "ndof::NDOF::connect()"  << std::endl;
@@ -115,7 +146,7 @@ Connection NDOF::connect(const Connection::Ideal& ideal)
 // connexion_handle_axis
 void NDOF::connexion_handle_axis(const ConnexionTranslation& trans, const ConnexionRotation& rot)
 {
-    NDOF::debug( "NDOF::connexion_handle_axis()" );
+    NDOF_DEBUG( "NDOF::connexion_handle_axis()" );
 }
 
 
@@ -125,7 +156,7 @@ void NDOF::connexion_handle_axis(const ConnexionTranslation& trans, const Connex
 void NDOF::connexion_handle_buttons(const ConnexionButtons& buttons)
 {
 
-    NDOF::debug( "NDOF::connexion_handle_buttons()" );
+    NDOF_DEBUG( "NDOF::connexion_handle_buttons()" );
 }
 
 
@@ -133,7 +164,7 @@ void NDOF::connexion_handle_buttons(const ConnexionButtons& buttons)
 // connexion_handle_app
 void NDOF::connexion_handle_app()
 {
-    NDOF::debug( "NDOF::connexion_handle_app()" );
+    NDOF_DEBUG( "NDOF::connexion_handle_app()" );
 
 }
 

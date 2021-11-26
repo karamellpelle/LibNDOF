@@ -26,6 +26,8 @@
 #include <tuple>
 #include <regex>
 #include <sstream>
+#include <cstdarg>
+#include <iostream>
 
 #ifdef LIBNDOF_BACKEND_HDIAPI 
 #include "hidapi.h"
@@ -334,9 +336,9 @@ public:
 
     // debug: more low level details than logging
 #ifdef LIBNDOF_DEBUG
-    static void debug(const std::string& );
-    static void debug(const std::ostringstream& );
-    //static void debug(const char* , ...);
+    static void debug(const std::string& s)         { std::cout << s << std::endl; }
+    static void debug(const std::ostringstream& os) { NDOF::debug( os.str() ); }
+    //static void debug(const char* fmt, ...)         { va_list args; va_start( args, fmt ); std::printf( fmt, args ); va_end( args  ); }
 #define NDOF_DEBUG(arg) NDOF::debug( (arg) )
 #else
     static void debug(const std::string& ) {  }
@@ -354,7 +356,7 @@ protected:
 
     std::ostream& log();
     std::ostream& log(const std::string& );
-    std::ostream& log(const char* , ...);
+    //std::ostream& log(const char* fmt, ...);
 
 
     std::forward_list<std::shared_ptr<Connection>> m_connections;

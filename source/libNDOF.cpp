@@ -77,25 +77,5 @@ ButtonChange DeviceEvent::buttonchange() const
     return ButtonChange(); // FIXME
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// debug
-
-#ifdef LIBNDOF_DEBUG
-void NDOF::debug(const std::string& s)
-{
-    std::cout << s << std::endl;
-}
-
-void NDOF::debug(const std::ostringstream& os)
-{
-    NDOF::debug( os.str() );
-}
-
-//void NDOF::debug(const char* fstr, ...)
-//{
-//    std::printf( fstr, ... );
-//}
-#endif
-
 
 } // namespace ndof
