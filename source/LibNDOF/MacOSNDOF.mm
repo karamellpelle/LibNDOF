@@ -119,6 +119,8 @@ std::vector<uint8_t> get_proc_pstr()
     if ( len < -1 )   throw Error( "could not retrieve executable name using 'proc_name()'" );
     if ( 256 <= len ) throw Error( "executable name stricly larger than 255 returned from 'proc_name()'" ); // I guess this should not happen
 
+    //NDOF_DEBUG( std::string( (const char*)(buf), len ) );
+
     // write length to first element
     ret[0] = static_cast<uint8_t>( len );
 
