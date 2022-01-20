@@ -119,10 +119,15 @@ std::vector<uint8_t> get_proc_pstr()
     if ( len < -1 )   throw Error( "could not retrieve executable name using 'proc_name()'" );
     if ( 256 <= len ) throw Error( "executable name stricly larger than 255 returned from 'proc_name()'" ); // I guess this should not happen
 
-    //NDOF_DEBUG( std::string( (const char*)(buf), len ) );
+    NDOF_DEBUG( std::string( (const char*)(buf), len ) );
 
     // write length to first element
     ret[0] = static_cast<uint8_t>( len );
+    NDOF_DEBUG( std::ostringstream() << "ret[0]: " << (int)(ret[0] ));
+    for (uint8_t i = 0; i != ret[0]; ++i )
+    {
+        NDOF_DEBUG( std::ostringstream() << "        " << (char)( ret[i+1] ) );
+    }
 
     return ret;
 }
@@ -156,6 +161,7 @@ void MacOSNDOF::begin()
         log() << "    opening framework '" << connexion_dyld_path << "'" << std::endl;
         m_private->m_connexion_dyld = ::dlopen( connexion_dyld_path, RTLD_LAZY | RTLD_LOCAL );
         if ( !m_private->m_connexion_dyld ) throw Error( "could not load 3Dconnexion client (are system drivers installed?)" );
+        NDOF_DEBUG( std::ostringstream() << "    loaded 3Dconnexion framework " << (void*)( m_private->m_connexion_dyld ) << " (3DconnexionClient)" );
 
         // load API function: SetConnexionHandlers (modern) or InstallConnexionHandlers (legacy)
         // set ConnexionAPIVersion based on availability
@@ -163,7 +169,7 @@ void MacOSNDOF::begin()
         if ( SetConnexionHandlers )
         {
             m_private->m_connexion_api_version = macos::ConnexionAPIVersion::MODERN; 
-            log( "    3Dconnexion client API available" );
+            log( "    3Dconnexion client API is available" );
         }
         else
         {
@@ -173,9 +179,12 @@ void MacOSNDOF::begin()
             if ( CONNEXION_LOAD_FUNCTION( InstallConnexionHandlers ) )
             {
                 m_private->m_connexion_api_version = macos::ConnexionAPIVersion::LEGACY;
+                log( "    3Dconnexion legacy client API is available" );
+                // ^TODO: 
             }
         }
         if ( macos::empty_ConnexionAPIVersion( m_private->m_connexion_api_version ) ) throw Error( "could not load 3Dconnexion client API (are system drivers installed?)" );
+        // ^TODO: add '::dlerror()'
         
         // load the rest of API functions
         CONNEXION_LOAD_FUNCTION( CleanupConnexionHandlers );
@@ -214,12 +223,16 @@ void MacOSNDOF::begin()
         // 
         auto name_pstr = get_proc_pstr(); // ^ current process name using pid
         m_private->m_connexion_client_id = RegisterConnexionClient( 0, name_pstr.data(), macos::from_ConnexionClientMode( macos::ConnexionClientMode::TAKE_OVER ), macos::from_ConnexionMask( macos::ConnexionMask::ALL ) );
+      //m_private->m_connexion_client_id = RegisterConnexionClient(
+      //    0, "\x06events",  macos::from_ConnexionClientMode( macos::ConnexionClientMode::TAKE_OVER ), macos::from_ConnexionMask( macos::ConnexionMask::ALL ) );
+        // TODO
 
         // FIXME: is ClientID 0 a failure?
         if ( m_private->m_connexion_client_id == 0 )
         {
-            throw Error( "API could not register client" ); // TODO: print pascal string
+            throw Error( "API could not register client" ); // TODO: add pascal string in error message
         }
+        NDOF_DEBUG( std::ostringstream() << "    3DConnexion ClientID: " << m_private->m_connexion_client_id  );
 
         // modern API needs specific call to set button mask
         if ( m_private->m_connexion_api_version == macos::ConnexionAPIVersion::MODERN )
@@ -227,7 +240,7 @@ void MacOSNDOF::begin()
             SetConnexionClientButtonMask( m_private->m_connexion_client_id, macos::from_ConnexionMaskButton( macos::ConnexionMaskButton::ALL ) );
         }
 
-        log( "    initialized." );
+        log( "    3DConnexion initialized :)" );
 
         m_initialized = true;
     }
