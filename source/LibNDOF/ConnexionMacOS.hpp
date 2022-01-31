@@ -56,9 +56,6 @@ using PFN_ConnexionSetButtonLabels = int16_t (*)(uint8_t* labels, uint16_t size 
 // 3Dconnexion drivers
 //
 //    * see /Library/Frameworks/3DconnexionClient.framework/Headers/ConnexionClient.h|ConnexionClientAPI.h (MacOS)h
-//    * TODO: to/from/empty can be made templates
-//    * TODO: use constexpr when c++14 for to_xxx() function since c++14 constexpr handles if and switch. preprocessor '#if 201103L < __cplusplus'
-
 
 namespace ndof
 {

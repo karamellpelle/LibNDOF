@@ -318,7 +318,7 @@ public:
     void logger(std::ostream* );
 
     // start/stop ndof. may throw exceptions
-    virtual void begin() = 0;
+    virtual void begin() = 0; // TODO: arguments like SEPARATE_THREAD
     virtual void end() = 0;
 
     // all physically connected devices 

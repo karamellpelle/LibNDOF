@@ -50,6 +50,12 @@ private:
     //static constexpr Mapping map_new;
 };
 
+//// TODO: fromRaw<ConnexionRotation>
+//template <typename T>
+//T fromRaw(uint8_t* , std::size_t );
+//
+//fromRaw<ConnexionTranslation>(  )
+
 } // namespace ndof
 
 #endif

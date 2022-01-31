@@ -23,6 +23,25 @@
 #include <unistd.h>
 #include <libproc.h>
 
+// TODO: into ConnexionMacOS.hpp
+// TODO: all Connexion loading into ConnexionMacOS.cpp? do this if there are other 3D mouse vendors than Connexion
+#define kConnexionClientModeTakeOver 1
+#define kConnexionMaskAxis 0x3f00
+#define kConnexionMaskAll 0x3fff
+#define kConnexionMaskAllButtons 0xffffffff
+#define kConnexionCmdHandleButtons 2
+#define kConnexionCmdHandleAxis 3
+#define kConnexionCmdAppSpecific 10
+#define kConnexionMsgDeviceState '3dSR'
+#define kConnexionCtlGetDeviceID '3did'
+
+// https://forum.3dconnexion.com/viewtopic.php?t=34846
+#define kConnexionClientManual        0x2B2B2B2B
+#define kConnexionCtlActivateClient   '3dac'
+#define kConnexionCtlDeactivateClient '3ddc'
+
+
+//    -> use kConnexionXXX instead of custom enums, KISS
 
 ////////////////////////////////////////////////////////////////////////////////
 // MacOSNDOF_Private: private data so we don't expose everything, especially ConnexionMacOS.hpp
@@ -52,17 +71,15 @@ public:
 // framework API functions
 // FIXME: private symbol exposure?
 // FIXME: extern C?
-// FIXME: into namespace ndof::macos
+// TODO: into ConnexionMacOS.mm?
 
 // https://stackoverflow.com/a/36964600/753850
 template <typename PFN>
 PFN connexion_getProcAddress(const char* fname)
 {
     PFN ret = reinterpret_cast<PFN>(  ::dlsym( ndof::MacOSNDOF::ndof->m_private->m_connexion_dyld, fname ) );
-#ifdef LIBNDOF_DEBUG 
-    //ndof::NDOF_DEBUG( "    loaded 3Dconnexion framework function %32s(): %08x\n", fname, ret ); // FIXME
+
     ndof::NDOF_DEBUG( std::ostringstream() << "    loaded 3Dconnexion framework function " << (void*)( ret ) << " (" << fname << ")" );
-#endif
 
     return ret;
 }
@@ -86,6 +103,23 @@ CONNEXION_FUNCTION_PTR( ConnexionControl );             // legacy
 CONNEXION_FUNCTION_PTR( ConnexionGetCurrentDevicePrefs );
 CONNEXION_FUNCTION_PTR( ConnexionSetButtonLabels );
 
+////////////////////////////////////////////////////////////////////////////////
+// it looks like these can't be implemeted as static C++ methods. maybe it has
+// something to do with Objective-C
+static void device_added(uint32_t unused)
+{
+    std::cout << "device added." << std::endl;
+}
+
+static void device_removed(uint32_t unused)
+{
+    std::cout << "device removed." << std::endl;
+}
+
+static void device_message(uint32_t unused, uint32_t msg_type, void *msg_arg)
+{
+    std::cout << "device message, type " << msg_type << std::endl;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // MacOSNDOF
@@ -98,39 +132,6 @@ namespace ndof
 
 ////////////////////////////////////////////////////////////////////////////////
 // helpers
-
-// return name of current process (executable name) as a pascal string
-//
-//    *            https://developer.apple.com/forums/thread/30522
-//    * pip_t:     https://opensource.apple.com/source/xnu/xnu-201/bsd/sys/types.h.auto.html 
-//    * libproc.h: https://opensource.apple.com/source/xnu/xnu-2422.1.72/libsyscall/wrappers/libproc/libproc.h.auto.html 
-// 
-std::vector<uint8_t> get_proc_pstr()
-{
-    // since return data is a pascal string (first byte is length), 
-    // the executable name cannot be longer than 256 (in fact maximumn 255)
-    std::vector<uint8_t> ret( 256 );
-
-    // retrieve name of current process
-    int pid = static_cast<int>( ::getpid() ); // pid_t (int32 according to sys/types.h) -> int
-    std::uint8_t* buf = ret.data() + 1;
-    std::size_t size  = sizeof(uint8_t) * ( 256 - 1 ); // should be 255
-    int len = proc_name( pid, buf, size );
-    if ( len < -1 )   throw Error( "could not retrieve executable name using 'proc_name()'" );
-    if ( 256 <= len ) throw Error( "executable name stricly larger than 255 returned from 'proc_name()'" ); // I guess this should not happen
-
-    NDOF_DEBUG( std::string( (const char*)(buf), len ) );
-
-    // write length to first element
-    ret[0] = static_cast<uint8_t>( len );
-    NDOF_DEBUG( std::ostringstream() << "ret[0]: " << (int)(ret[0] ));
-    for (uint8_t i = 0; i != ret[0]; ++i )
-    {
-        NDOF_DEBUG( std::ostringstream() << "        " << (char)( ret[i+1] ) );
-    }
-
-    return ret;
-}
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -152,7 +153,7 @@ void MacOSNDOF::begin()
     if ( !m_initialized )
     {
         log( "initializing MacOSNDOF:" );
-
+        
         // retrieve vid pid
         // set button mask
 
@@ -161,7 +162,7 @@ void MacOSNDOF::begin()
         log() << "    opening framework '" << connexion_dyld_path << "'" << std::endl;
         m_private->m_connexion_dyld = ::dlopen( connexion_dyld_path, RTLD_LAZY | RTLD_LOCAL );
         if ( !m_private->m_connexion_dyld ) throw Error( "could not load 3Dconnexion client (are system drivers installed?)" );
-        NDOF_DEBUG( std::ostringstream() << "    loaded 3Dconnexion framework " << (void*)( m_private->m_connexion_dyld ) << " (3DconnexionClient)" );
+        NDOF_DEBUG( std::ostringstream() << "    3Dconnexion framework opened (" << (void*)( m_private->m_connexion_dyld ) << ")" );
 
         // load API function: SetConnexionHandlers (modern) or InstallConnexionHandlers (legacy)
         // set ConnexionAPIVersion based on availability
@@ -169,7 +170,7 @@ void MacOSNDOF::begin()
         if ( SetConnexionHandlers )
         {
             m_private->m_connexion_api_version = macos::ConnexionAPIVersion::MODERN; 
-            log( "    3Dconnexion client API is available" );
+            log( "    3Dconnexion modern API is available" );
         }
         else
         {
@@ -179,12 +180,15 @@ void MacOSNDOF::begin()
             if ( CONNEXION_LOAD_FUNCTION( InstallConnexionHandlers ) )
             {
                 m_private->m_connexion_api_version = macos::ConnexionAPIVersion::LEGACY;
-                log( "    3Dconnexion legacy client API is available" );
-                // ^TODO: 
+                log( "    3Dconnexion legacy API is available" );
             }
         }
-        if ( macos::empty_ConnexionAPIVersion( m_private->m_connexion_api_version ) ) throw Error( "could not load 3Dconnexion client API (are system drivers installed?)" );
-        // ^TODO: add '::dlerror()'
+        if ( macos::empty_ConnexionAPIVersion( m_private->m_connexion_api_version ) )
+        {
+            std::ostringstream os;
+            os << "could not load 3Dconnexion client API: " << ::dlerror() << " (are system drivers installed?)";
+            throw Error( os.str() );
+        }
         
         // load the rest of API functions
         CONNEXION_LOAD_FUNCTION( CleanupConnexionHandlers );
@@ -197,50 +201,70 @@ void MacOSNDOF::begin()
         //CONNEXION_LOAD_FUNCTION( ConnexionGetCurrentDevicePrefs ); 
         //CONNEXION_LOAD_FUNCTION( ConnexionSetButtonLabels ); 
 
-        uint16_t err = 0;
         if ( m_private->m_connexion_api_version == macos::ConnexionAPIVersion::MODERN )
         {
-            constexpr bool seperate_thread = false; // FIXME!
-            if ( uint16_t err = SetConnexionHandlers( MacOSNDOF_Private::connexion_MessageHandler, MacOSNDOF_Private::connexion_AddedHandler, MacOSNDOF_Private::connexion_RemovedHandler, seperate_thread ) )
+            constexpr bool seperate_thread = false; // FIXME: use enum!!
+            //if ( uint16_t err = SetConnexionHandlers( MacOSNDOF_Private::connexion_MessageHandler, MacOSNDOF_Private::connexion_AddedHandler, MacOSNDOF_Private::connexion_RemovedHandler, seperate_thread ) )
+            if ( uint16_t err = SetConnexionHandlers( device_message, device_added, device_removed, true ) )
             {
                 throw Error( "could not setup client API callbacks (error code: " + std::to_string( err ) + ")" );
             }
+            NDOF_DEBUG( "    3Dconnexion callbacks registered");
         }
         if ( m_private->m_connexion_api_version == macos::ConnexionAPIVersion::LEGACY )
         {
-            if ( uint16_t err = InstallConnexionHandlers( MacOSNDOF_Private::connexion_MessageHandler, MacOSNDOF_Private::connexion_AddedHandler, MacOSNDOF_Private::connexion_RemovedHandler ) ) 
+            //if ( uint16_t err = InstallConnexionHandlers( MacOSNDOF_Private::connexion_MessageHandler, MacOSNDOF_Private::connexion_AddedHandler, MacOSNDOF_Private::connexion_RemovedHandler ) ) 
+            if ( uint16_t err = InstallConnexionHandlers( device_message, device_added, device_removed ) ) 
             {
                 throw Error( "could not setup legacy client API callbacks (error code: " + std::to_string( err ) + ")" );
             }
+            NDOF_DEBUG( "    3Dconnexion callbacks registered (legacy)");
         }
 
-        // register LibNDOF to the 3Dconnexion system driver.
-        // 'RegisterConnexionClient()' needs either a CFBundleSignature or the process name as a pascal string.
-        //
-        // FIXME: can we instead use 'kConnexionClientManual'? see ConnexionClient.h in framework
-        // 
-        //    * https://stackoverflow.com/questions/1875912/naming-convention-for-cfbundlesignature-and-cfbundleidentifier
-        // 
-        auto name_pstr = get_proc_pstr(); // ^ current process name using pid
-        m_private->m_connexion_client_id = RegisterConnexionClient( 0, name_pstr.data(), macos::from_ConnexionClientMode( macos::ConnexionClientMode::TAKE_OVER ), macos::from_ConnexionMask( macos::ConnexionMask::ALL ) );
-      //m_private->m_connexion_client_id = RegisterConnexionClient(
-      //    0, "\x06events",  macos::from_ConnexionClientMode( macos::ConnexionClientMode::TAKE_OVER ), macos::from_ConnexionMask( macos::ConnexionMask::ALL ) );
-        // TODO
-
+        // (manually) register LibNDOF to the 3Dconnexion system driver. then we have to activate us using 'ConnexionClientControl'
+        // FIXME: can we use 'kConnexionClientManual' on legacy drivers? I guess nobody is using legacy anyway :)
+        //        if not, look at previous versions of this file in repo to see an implemetation using current process name
+        m_private->m_connexion_client_id = RegisterConnexionClient( kConnexionClientManual, 0, kConnexionClientModeTakeOver, kConnexionMaskAxis );
+        
         // FIXME: is ClientID 0 a failure?
         if ( m_private->m_connexion_client_id == 0 )
         {
-            throw Error( "API could not register client" ); // TODO: add pascal string in error message
+            throw Error( "API could not register client" );
         }
-        NDOF_DEBUG( std::ostringstream() << "    3DConnexion ClientID: " << m_private->m_connexion_client_id  );
+        NDOF_DEBUG( std::ostringstream() << "    3DConnexion client registered; ClientID is " << m_private->m_connexion_client_id  );
 
         // modern API needs specific call to set button mask
         if ( m_private->m_connexion_api_version == macos::ConnexionAPIVersion::MODERN )
         {
+            int32_t result;
+            if ( uint16_t err = ConnexionClientControl( m_private->m_connexion_client_id, kConnexionCtlActivateClient, 0, &result ) )
+            {
+                std::ostringstream os;
+                os << "activating 3DConnexion client failed: " << err;
+                throw Error( os.str() );
+            }
+            NDOF_DEBUG( std::ostringstream() << "    activating 3DConnexion client: " << result );
+
+            // enable all buttons 
             SetConnexionClientButtonMask( m_private->m_connexion_client_id, macos::from_ConnexionMaskButton( macos::ConnexionMaskButton::ALL ) );
+
+        }
+        if ( m_private->m_connexion_api_version == macos::ConnexionAPIVersion::LEGACY )
+        {
+            int32_t result;
+            if ( uint16_t err = ConnexionControl( kConnexionCtlActivateClient, 0, &result ) )
+            {
+                std::ostringstream os;
+                os << "activating legacy 3DConnexion client failed: " << err ;
+                throw Error( os.str() );
+            }
+            NDOF_DEBUG( std::ostringstream() << "    activating 3DConnexion client: " << result );
+
+            // (no need for button mask on legacy driver)
         }
 
-        log( "    3DConnexion initialized :)" );
+
+        log( "    3DConnexion is initialized :)" );
 
         m_initialized = true;
     }
@@ -255,6 +279,14 @@ void MacOSNDOF::end()
 {
     if ( m_initialized )
     {
+        int32_t result;
+        if ( uint16_t err = ConnexionClientControl( m_private->m_connexion_client_id, kConnexionCtlActivateClient, 0, &result ) )
+        {
+            NDOF_DEBUG( std::ostringstream() << "    deactivate 3DConnexion client failed: " << err );
+        }
+        NDOF_DEBUG( std::ostringstream() << "    deactivate 3DConnexion client: " << result );
+
+
         // unregister client
         UnregisterConnexionClient( m_private->m_connexion_client_id );
         m_private->m_connexion_client_id = 0;
@@ -276,7 +308,7 @@ void MacOSNDOF::end()
 
 void MacOSNDOF_Private::connexion_MessageHandler(unsigned int productID, unsigned int msg, void* msg_arg)
 {
-    MacOSNDOF* ndof                 = MacOSNDOF::ndof;
+    MacOSNDOF* ndof = MacOSNDOF::ndof;
 
     switch ( macos::to_ConnexionMsg( msg ) )
     {
